@@ -1,165 +1,350 @@
 #!/bin/bash
 set -euo pipefail
 
-# -------------------------
-# Colors
-# -------------------------
-RED="\e[31m"
-GREEN="\e[32m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-CYAN="\e[36m"
-WHITE="\e[37m"
-RESET="\e[0m"
-BOLD="\e[1m"
+# =============================
+# Enhanced Multi-VM Manager
+# =============================
 
-# -------------------------
-# Helpers
-# -------------------------
-check_curl() {
-    if ! command -v curl &>/dev/null; then
-        echo -e "${RED}${BOLD}Error: curl is not installed.${RESET}"
-        echo -e "${YELLOW}Installing curl...${RESET}"
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y curl
-        elif command -v yum &>/dev/null; then
-            sudo yum install -y curl
-        elif command -v dnf &>/dev/null; then
-            sudo dnf install -y curl
-        else
-            echo -e "${RED}Could not install curl automatically. Please install it manually.${RESET}"
-            return 1
-        fi
-        echo -e "${GREEN}curl installed successfully!${RESET}"
-    fi
-}
-
-check_wget() {
-    if ! command -v wget &>/dev/null; then
-        echo -e "${YELLOW}wget not found — attempting to install...${RESET}"
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update && sudo apt-get install -y wget
-        elif command -v yum &>/dev/null; then
-            sudo yum install -y wget
-        elif command -v dnf &>/dev/null; then
-            sudo dnf install -y wget
-        else
-            echo -e "${RED}Could not install wget automatically. Please install it manually.${RESET}"
-            return 1
-        fi
-        echo -e "${GREEN}wget installed successfully!${RESET}"
-    fi
-}
-
-# -------------------------
-# Logo animation
-# -------------------------
-animate_logo() {
-  clear
-  local logo=(
-   _____   _    _   _____  __      __             __  __ 
-  / ____| | |  | | |_   _| \ \    / /     /\     |  \/  |
- | (___   | |__| |   | |    \ \  / /     /  \    | \  / |
-  \___ \  |  __  |   | |     \ \/ /     / /\ \   | |\/| |
-  ____) | | |  | |  _| |_     \  /     / ____ \  | |  | |
- |_____/  |_|  |_| |_____|     \/     /_/    \_\ |_|  |_|
-                                                         
-                                                         
-  )
-  for line in "${logo[@]}"; do
-    printf "%b\n" "${CYAN}${BOLD}${line}${RESET}"
-    sleep 0.03
-  done
-  printf "\n"
-}
-
-# -------------------------
-# System info
-# -------------------------
-system_info() {
-    echo -e "${BOLD}SYSTEM INFORMATION${RESET}"
-    echo "Hostname : $(hostname)"
-    echo "User     : $(whoami)"
-    echo "Directory: $(pwd)"
-    echo "System   : $(uname -srm)"
-    echo "Uptime   : $(uptime -p)"
-    echo "Memory   : $(free -h | awk '/Mem:/ {print $3\"/\"$2}')"
-    echo "Disk     : $(df -h / | awk 'NR==2 {print $3\"/\"$2 \" (\"$5\")\"}')"
-    echo
-    read -rp "Press Enter to continue..."
-}
-
-# -------------------------
-# Run script safely
-# -------------------------
-run_script() {
-    local url="$1"
-    check_curl || return
-    echo -e "${YELLOW}Running script: $url${RESET}"
-    if ! bash <(curl -fsSL "$url"); then
-        echo -e "${RED}Script failed! Returning to menu...${RESET}"
-        read -rp "Press Enter to continue..."
-    else
-        echo -e "${GREEN}Script completed successfully.${RESET}"
-        read -rp "Press Enter to continue..."
-    fi
-}
-
-# -------------------------
-# Main menu
-# -------------------------
-show_menu() {
+# Function to display header
+display_header() {
     clear
-    echo -e "${CYAN}${BOLD}========== MAIN MENU ==========${RESET}"
-    echo -e "${BOLD}1. Pterodactyl ${RESET}"
-    echo -e "${BOLD}2. Jexactyl ${RESET}"
-    echo -e "${BOLD}3. Blueprint${RESET}"
-    echo -e "${BOLD}4. Cloudflare${RESET}"
-    echo -e "${BOLD}5. System Info${RESET}"
-    echo -e "${BOLD}6. Exit${RESET}"
-    echo -e "${CYAN}${BOLD}===============================${RESET}"
-    echo -ne "${BOLD}Enter your choice [1-7]: ${RESET}"
+    cat << "EOF"
+========================================================================
+ /$$$$$$$$       /$$     /$$       /$$   /$$       /$$$$$$$$       /$$   /$$
+|_____ $$       |  $$   /$$/      | $$$ | $$      | $$_____/      | $$  / $$
+     /$$/        \  $$ /$$/       | $$$$| $$      | $$            |  $$/ $$/
+    /$$/          \  $$$$/        | $$ $$ $$      | $$$$$          \  $$$$/ 
+   /$$/            \  $$/         | $$  $$$$      | $$__/           >$$  $$ 
+  /$$/              | $$          | $$\  $$$      | $$             /$$/\  $$
+ /$$$$$$$$          | $$          | $$ \  $$      | $$$$$$$$      | $$  \ $$
+|________/          |__/          |__/  \__/      |________/      |__/  |__/
+                                                                  
+                    POWERED BY ZYNEX
+========================================================================
+EOF
+    echo
 }
 
-# -------------------------
-# Main loop
-# -------------------------
-while true; do
-    animate_logo
-    show_menu
-    read -r choice
-    case $choice in
-        1)
-            run_script "https://pterodactyl-installer.se"
-            ;;
-        2)
-            echo "That Is Not Maded Yet"
-            ;;
-        3)
-            run_script "https://raw.githubusercontent.com/NothingTheKing/blueprint/main/blueprint.sh"
-            ;;
-        4)
-            check_wget || continue
-            echo -e "${YELLOW}Downloading Cloudflare package...${RESET}"
-            if wget -q --show-progress https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb; then
-                sudo dpkg -i cloudflared-linux-amd64.deb || true
-                rm -f cloudflared-linux-amd64.deb
-                echo -e "${GREEN}Cloudflare installed successfully.${RESET}"
-            else
-                echo -e "${RED}Failed to download Cloudflare.${RESET}"
+# Function to display colored output
+print_status() {
+    local type=$1
+    local message=$2
+    
+    case $type in
+        "INFO") echo -e "\033[1;34m[INFO]\033[0m $message" ;;
+        "WARN") echo -e "\033[1;33m[WARN]\033[0m $message" ;;
+        "ERROR") echo -e "\033[1;31m[ERROR]\033[0m $message" ;;
+        "SUCCESS") echo -e "\033[1;32m[SUCCESS]\033[0m $message" ;;
+        "INPUT") echo -e "\033[1;36m[INPUT]\033[0m $message" ;;
+        *) echo "[$type] $message" ;;
+    esac
+}
+
+# Function to validate input
+validate_input() {
+    local type=$1
+    local value=$2
+    
+    case $type in
+        "number")
+            if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+                print_status "ERROR" "Must be a number"
+                return 1
             fi
-            read -rp "Press Enter to continue..."
             ;;
-        5)
-            system_info
+        "size")
+            if ! [[ "$value" =~ ^[0-9]+[GgMm]$ ]]; then
+                print_status "ERROR" "Must be a size with unit (e.g., 100G, 512M)"
+                return 1
+            fi
             ;;
-        6)
-            echo -e "${RED}Exiting...${RESET}"
+        "port")
+            if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 23 ] || [ "$value" -gt 65535 ]; then
+                print_status "ERROR" "Must be a valid port number (23-65535)"
+                return 1
+            fi
+            ;;
+        "name")
+            if ! [[ "$value" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+                print_status "ERROR" "VM name can only contain letters, numbers, hyphens, and underscores"
+                return 1
+            fi
+            ;;
+        "username")
+            if ! [[ "$value" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+                print_status "ERROR" "Username must start with a letter or underscore, and contain only letters, numbers, hyphens, and underscores"
+                return 1
+            fi
+            ;;
+    esac
+    return 0
+}
+
+# Function to check dependencies
+check_dependencies() {
+    local deps=("qemu-system-x86_64" "wget" "cloud-localds" "qemu-img")
+    local missing_deps=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        print_status "ERROR" "Missing dependencies: ${missing_deps[*]}"
+        print_status "INFO" "On Ubuntu/Debian, try: sudo apt install qemu-system cloud-image-utils wget"
+        exit 1
+    fi
+}
+
+# Function to cleanup temporary files
+cleanup() {
+    if [ -f "user-data" ]; then rm -f "user-data"; fi
+    if [ -f "meta-data" ]; then rm -f "meta-data"; fi
+}
+
+# Function to get all VM configurations
+get_vm_list() {
+    find "$VM_DIR" -name "*.conf" -exec basename {} .conf \; 2>/dev/null | sort
+}
+
+# Function to load VM configuration
+load_vm_config() {
+    local vm_name=$1
+    local config_file="$VM_DIR/$vm_name.conf"
+    
+    if [[ -f "$config_file" ]]; then
+        unset VM_NAME OS_TYPE CODENAME IMG_URL HOSTNAME USERNAME PASSWORD
+        unset DISK_SIZE MEMORY CPUS SSH_PORT GUI_MODE PORT_FORWARDS IMG_FILE SEED_FILE CREATED
+        
+        source "$config_file"
+        return 0
+    else
+        print_status "ERROR" "Configuration for VM '$vm_name' not found"
+        return 1
+    fi
+}
+
+# Function to save VM configuration
+save_vm_config() {
+    local config_file="$VM_DIR/$VM_NAME.conf"
+    
+    cat > "$config_file" <<EOF
+VM_NAME="$VM_NAME"
+OS_TYPE="$OS_TYPE"
+CODENAME="$CODENAME"
+IMG_URL="$IMG_URL"
+HOSTNAME="$HOSTNAME"
+USERNAME="$USERNAME"
+PASSWORD="$PASSWORD"
+DISK_SIZE="$DISK_SIZE"
+MEMORY="$MEMORY"
+CPUS="$CPUS"
+SSH_PORT="$SSH_PORT"
+GUI_MODE="$GUI_MODE"
+PORT_FORWARDS="$PORT_FORWARDS"
+IMG_FILE="$IMG_FILE"
+SEED_FILE="$SEED_FILE"
+CREATED="$CREATED"
+EOF
+    
+    print_status "SUCCESS" "Configuration saved to $config_file"
+}
+
+# Function to create new VM
+create_new_vm() {
+    print_status "INFO" "Creating a new VM"
+    
+    # OS Selection
+    print_status "INFO" "Select an OS to set up:"
+    local os_options=()
+    local i=1
+    for os in "${!OS_OPTIONS[@]}"; do
+        echo "  $i) $os"
+        os_options[$i]="$os"
+        ((i++))
+    done
+    
+    while true; do
+        read -p "$(print_status "INPUT" "Enter your choice (1-${#OS_OPTIONS[@]}): ")" choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#OS_OPTIONS[@]} ]; then
+            local os="${os_options[$choice]}"
+            IFS='|' read -r OS_TYPE CODENAME IMG_URL DEFAULT_HOSTNAME DEFAULT_USERNAME DEFAULT_PASSWORD <<< "${OS_OPTIONS[$os]}"
+            break
+        else
+            print_status "ERROR" "Invalid selection. Try again."
+        fi
+    done
+
+    # Custom Inputs with validation
+    while true; do
+        read -p "$(print_status "INPUT" "Enter VM name (default: $DEFAULT_HOSTNAME): ")" VM_NAME
+        VM_NAME="${VM_NAME:-$DEFAULT_HOSTNAME}"
+        if validate_input "name" "$VM_NAME"; then
+            if [[ -f "$VM_DIR/$VM_NAME.conf" ]]; then
+                print_status "ERROR" "VM with name '$VM_NAME' already exists"
+            else
+                break
+            fi
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Enter hostname (default: $VM_NAME): ")" HOSTNAME
+        HOSTNAME="${HOSTNAME:-$VM_NAME}"
+        if validate_input "name" "$HOSTNAME"; then
+            break
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Enter username (default: $DEFAULT_USERNAME): ")" USERNAME
+        USERNAME="${USERNAME:-$DEFAULT_USERNAME}"
+        if validate_input "username" "$USERNAME"; then
+            break
+        fi
+    done
+
+    while true; do
+        read -s -p "$(print_status "INPUT" "Enter password (default: $DEFAULT_PASSWORD): ")" PASSWORD
+        PASSWORD="${PASSWORD:-$DEFAULT_PASSWORD}"
+        echo
+        if [ -n "$PASSWORD" ]; then
+            break
+        else
+            print_status "ERROR" "Password cannot be empty"
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Disk size (default: 20G): ")" DISK_SIZE
+        DISK_SIZE="${DISK_SIZE:-20G}"
+        if validate_input "size" "$DISK_SIZE"; then
+            break
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Memory in MB (default: 2048): ")" MEMORY
+        MEMORY="${MEMORY:-2048}"
+        if validate_input "number" "$MEMORY"; then
+            break
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Number of CPUs (default: 2): ")" CPUS
+        CPUS="${CPUS:-2}"
+        if validate_input "number" "$CPUS"; then
+            break
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "SSH Port (default: 2222): ")" SSH_PORT
+        SSH_PORT="${SSH_PORT:-2222}"
+        if validate_input "port" "$SSH_PORT"; then
+            if ss -tln 2>/dev/null | grep -q ":$SSH_PORT "; then
+                print_status "ERROR" "Port $SSH_PORT is already in use"
+            else
+                break
+            fi
+        fi
+    done
+
+    while true; do
+        read -p "$(print_status "INPUT" "Enable GUI mode? (y/n, default: n): ")" gui_input
+        GUI_MODE=false
+        gui_input="${gui_input:-n}"
+        if [[ "$gui_input" =~ ^[Yy]$ ]]; then 
+            GUI_MODE=true
+            break
+        elif [[ "$gui_input" =~ ^[Nn]$ ]]; then
+            break
+        else
+            print_status "ERROR" "Please answer y or n"
+        fi
+    done
+
+    read -p "$(print_status "INPUT" "Additional port forwards (e.g., 8080:80, press Enter for none): ")" PORT_FORWARDS
+
+    IMG_FILE="$VM_DIR/$VM_NAME.img"
+    SEED_FILE="$VM_DIR/$VM_NAME-seed.iso"
+    CREATED="$(date)"
+
+    setup_vm_image
+    save_vm_config
+}
+
+# Function to setup VM image
+setup_vm_image() {
+    print_status "INFO" "Downloading and preparing image..."
+    mkdir -p "$VM_DIR"
+    
+    if [[ -f "$IMG_FILE" ]]; then
+        print_status "INFO" "Image file already exists. Skipping download."
+    else
+        print_status "INFO" "Downloading image from $IMG_URL..."
+        if ! wget --progress=bar:force "$IMG_URL" -O "$IMG_FILE.tmp"; then
+            print_status "ERROR" "Failed to download image from $IMG_URL"
+            exit 1
+        fi
+        mv "$IMG_FILE.tmp" "$IMG_FILE"
+    fi
+    
+    if ! qemu-img resize "$IMG_FILE" "$DISK_SIZE" 2>/dev/null; then
+        print_status "WARN" "Failed to resize disk image. Creating new image with specified size..."
+        rm -f "$IMG_FILE"
+        qemu-img create -f qcow2 "$IMG_FILE" "$DISK_SIZE"
+    fi
+    
+    generate_cloud_init_iso
+}
+
+# Function to generate cloud-init ISO
+generate_cloud_init_iso() {
+    print_status "INFO" "Generating cloud-init seed ISO..."
+    
+    cat > user-data <<EOF
+#cloud-config
+hostname: $HOSTNAME
+users:
+  - name: $USERNAME
+    plain_text_passwd: '$PASSWORD'
+    lock_passwd: false
+    sudo: ALL=(ALL) NOPASSWD:ALL
+ssh_pwauth: True
+EOF
+
+    touch meta-data
+    cloud-localds "$SEED_FILE" user-data meta-data
+    rm -f user-data meta-data
+}
+
+# Main script starts here
+VM_DIR="./vms"
+declare -A OS_OPTIONS
+OS_OPTIONS["Ubuntu 22.04 LTS"]="ubuntu|jammy|https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img|ubuntu-vm|ubuntu|ubuntu"
+
+check_dependencies
+display_header
+
+PS3="Select an action: "
+options=("Create New VM" "List VMs" "Exit")
+select opt in "${options[@]}"; do
+    case $opt in
+        "Create New VM")
+            create_new_vm
+            ;;
+        "List VMs")
+            get_vm_list
+            ;;
+        "Exit")
             exit 0
             ;;
         *)
-            echo -e "${RED}Invalid choice! Please select 1-7.${RESET}"
-            read -rp "Press Enter to continue..."
+            print_status "ERROR" "Invalid option"
             ;;
     esac
 done
